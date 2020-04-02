@@ -1,0 +1,5 @@
+*.json
+*.pickle
+*.yaml
+*/**
+*.log
