@@ -53,8 +53,12 @@ class SheetsBridge(commands.Cog):
                     if not self.nickname_valid(username):
                         new_nick = school_username
 
-                    # Member object mentioned above
+                    # Get a reference to the current member object
                     update_member = guild_usernames[username]
+
+                    # Check if the user's nickname has been overridden
+                    if update_member.id in self.overrides.keys():
+                        new_nick = self.overrides[update_member.id]
 
                     # Get the role reference through the guild
                     role_id = self.guild_verified_roles[guild_id]
@@ -139,7 +143,7 @@ class SheetsBridge(commands.Cog):
         self.update_data.start()
         await ctx.send(f"Starting verification loop.\nVerified role: {verified_role}")
 
-    @ start_verification.error
+    @start_verification.error
     async def verify_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.BotMissingPermissions):
             message_base = "In order to verify users, I need the following additional permission(s): "
@@ -151,6 +155,141 @@ class SheetsBridge(commands.Cog):
 
         elif isinstance(error, commands.BadArgument):
             await ctx.send("You need to provide a role to grant once verified.")
+
+    @commands.command(name="verified-role")
+    async def verified_role(self, ctx: commands.Context):
+        current_guild = ctx.guild
+        message = ""
+
+        # Check if there is a verification role for the current guild
+        if current_guild.id in self.guild_verified_roles.keys():
+            ver_role_id = self.guild_verified_roles[current_guild.id]
+            ver_role = current_guild.get_role(ver_role_id)
+            message = f"The current verified role for this guild is {ver_role.name}."
+        else:
+            message = "There is no verified role for this server yet."
+
+        await ctx.send(message)
+
+    @commands.command()
+    async def clear(self, ctx: commands.Context, clear_target):
+        # Possible clear targets
+        possible_targets = ["override", "ignoredrole",
+                            "ignoreduser", "verifiedrole"]
+
+        if clear_target not in possible_targets:
+            raise commands.BadArgument("Invalid clear target")
+
+        # Clear override
+        if clear_target == possible_targets[0]:
+            if len(mentions := ctx.message.mentions) != 0:
+                clear_user = mentions[0]
+
+                # Check if the user's name is overridden
+                if clear_user.id not in self.overrides.keys():
+                    await ctx.send(f"{clear_user.name}'s nickname is not overridden.")
+                    return
+                else:
+                    # Reset the user's nickname
+                    await clear_user.edit(nick=None)
+
+                    # Remove override and write changes
+                    self.clear_dict_attribute(
+                        self.overrides, clear_user.id, "overrides.pickle")
+
+            else:
+                await ctx.send("Please provide a user to remove a nickname override from.")
+
+        # Clear ignored role
+        elif clear_target == possible_targets[1]:
+            if len(role_mentions := ctx.message.role_mentions) != 0:
+                clear_role = role_mentions[0]
+
+                # Check if role is actually ignored
+                if clear_role.id not in self.ignored_ids["roles"]:
+                    await ctx.send(f"{clear_role.name} is not ignored.")
+                    return
+                else:
+                    # Remove ignore and write changes
+                    self.clear_list_attribute(
+                        self.ignored_ids["roles"], self.ignored_ids, clear_role.id, "ignored_ids.pickle")
+
+                    await ctx.send(f"Successfully unignored role: {clear_role.name}")
+
+            else:
+                await ctx.send("Please provide a role to unignore.")
+
+        # Clear ignored user
+        elif clear_target == possible_targets[2]:
+            if len(mentions := ctx.message.mentions) != 0:
+                clear_user = mentions[0]
+
+                # Check if user is currently ignored
+                if clear_user.id not in self.ignored_ids["users"]:
+                    await ctx.send(f"{clear_user.name} is not ignored.")
+                    return
+                else:
+                    # Remove ignore and write changes
+                    self.clear_list_attribute(
+                        self.ignored_ids["users"], self.ignored_ids, clear_user.id, "ignored_ids.pickle")
+
+                    await ctx.send(f"Successfully unignored user: {clear_user.name}")
+
+            else:
+                await ctx.send("Please provide a user to unignore.")
+
+        # Clear verified role
+        elif clear_target == possible_targets[3]:
+            if len(role_mentions := ctx.message.role_mentions) != 0:
+                clear_role = role_mentions[0]
+
+                # Check if the role is the current guild's corresponding
+                # verified role
+                if (guild_id := ctx.guild.id) not in self.guild_verified_roles.keys():
+                    await ctx.send(f"{clear_role.name} is not this guild's verified role.")
+                    return
+                else:
+                    # Remove verified role and write changes
+                    print("Removing guild verified role")
+                    self.clear_dict_attribute(
+                        self.guild_verified_roles, guild_id, "verified_roles.pickle")
+                    print("Done removing verified role")
+
+                    # Stop the verification loop as well
+                    print("Stopping update data")
+                    self.update_data.stop()
+                    print("update data stopped.")
+
+                    remove_message = f"Successfully removed verified role: {clear_role.name}\nThe verification loop has stopped."
+
+                    await ctx.send(f"Successfully removed verified role: {clear_role.name}")
+
+            else:
+                await ctx.send("Please provide a verified role to remove.")
+
+    @clear.error
+    async def clear_error(self, ctx: commands.Context, error):
+        if isinstance(error, commands.BadArgument) or isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send("Please provide a valid clear target.")
+            await ctx.send("Possible clear targets are `override`, `ignoredrole`, `ignoreduser`, and `verifiedrole`.")
+
+    def clear_dict_attribute(self, location: dict, key, file):
+        # Delete the override and write the data to its file
+        print("Deleting key")
+        del location[key]
+        print("Deleted key")
+
+        self.write_attr_changes(location, file)
+
+    def clear_list_attribute(self, location: list, write_item, item, file):
+        # Delete the override and write the data to its file
+        location.remove(item)
+
+        self.write_attr_changes(write_item, file)
+
+    def write_attr_changes(self, obj, file):
+        with open(file, "wb") as update_file:
+            pickle.dump(obj, update_file)
 
     def update_verified_role(self, guild_id, role_id):
         self.guild_verified_roles[guild_id] = role_id
@@ -179,7 +318,7 @@ class SheetsBridge(commands.Cog):
 
         return pretty_list
 
-    @ commands.command()
+    @commands.command()
     async def ignore(self, ctx: commands.Context):
         # Add users mentioned to ignore_rules under the "users" key
         for member in ctx.message.mentions:
@@ -208,7 +347,7 @@ class SheetsBridge(commands.Cog):
         if response != "":
             await ctx.send(response)
 
-    @ commands.command(name="list-ignored")
+    @commands.command(name="list-ignored")
     async def list_ignored(self, ctx: commands.Context):
         ignore_embed = discord.Embed(title="Ignored Users and Roles",
                                      color=discord.Color.orange())
@@ -224,20 +363,61 @@ class SheetsBridge(commands.Cog):
             ignored_users.append(user.mention)
 
         # Add corresponding fields to embed with pretty-printed information
-        role_list_str = self.pretty_print_list(ignored_roles)
-        ignore_embed.add_field(name="Ignored Roles:",
-                               value=role_list_str, inline=False)
+        if len(ignored_roles) > 0:
+            role_list_str = self.pretty_print_list(ignored_roles)
+            ignore_embed.add_field(name="Ignored Roles:",
+                                   value=role_list_str, inline=False)
 
-        user_list_str = self.pretty_print_list(ignored_users)
-        ignore_embed.add_field(name="Ignored Users:",
-                               value=user_list_str, inline=False)
+        if len(ignored_users) > 0:
+            user_list_str = self.pretty_print_list(ignored_users)
+            ignore_embed.add_field(name="Ignored Users:",
+                                   value=user_list_str, inline=False)
 
         # send the embed
         await ctx.send(embed=ignore_embed)
 
-    @ commands.command()
-    async def override(self, ctx: commands.Context, arg):
-        pass
+    @commands.command()
+    @commands.bot_has_guild_permissions(manage_nicknames=True)
+    async def override(self, ctx: commands.Context, user, *name):
+        if (mentions := ctx.message.mentions) == []:
+            raise commands.BadArgument("No user supplied")
+
+        override_user = ctx.message.mentions[0]
+        new_nickname = " ".join(name)
+
+        if new_nickname == "":
+            new_nickname = None
+
+        # Change the user's nickname
+        await override_user.edit(nick=new_nickname)
+
+        # Send a message about the override
+        await ctx.send(f"{override_user.name}'s nickname is now {new_nickname}.")
+
+        # Add override to global list
+        self.overrides[override_user.id] = new_nickname
+
+        # Write current overrides to file for later use
+        with open("overrides.pickle", "wb") as override_file:
+            pickle.dump(self.overrides, override_file)
+
+    # TODO: Handle permission error (maybe in separate function?)
+    @override.error
+    async def override_error(self, ctx: commands.Context, error):
+        if isinstance(error, commands.BadArgument):
+            await ctx.send("You need to supply a user to override")
+
+    @commands.command(name="list-overrides")
+    async def list_overrides(self, ctx: commands.Context):
+        list_embed = discord.Embed(title="Nickname Overrides",
+                                   description="",
+                                   color=discord.Color.green())
+
+        for user_id in self.overrides.keys():
+            user = ctx.guild.get_member(user_id)
+            list_embed.description += f"{user.mention} ➡️ {self.overrides[user_id]}\n"
+
+        await ctx.send(embed=list_embed)
 
     def read_pickle_if_exists(self, filename, default_val):
         if os.path.exists(filename):
