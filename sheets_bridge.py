@@ -172,6 +172,64 @@ class SheetsBridge(commands.Cog):
         await ctx.send(message)
 
     @commands.command()
+    @commands.bot_has_guild_permissions(manage_roles=True, manage_nicknames=True)
+    async def reverify(self, ctx: commands.Context):
+        import bot
+
+        for member in ctx.message.mentions:
+            if not self.ignore_member(member):
+                await member.edit(nick=None, roles=[])
+
+            # DM the user the information embed
+            if member.dm_channel is None:
+                await member.create_dm()
+
+            await member.dm_channel.send(embed=bot.info_embed)
+            await ctx.send(f"Reverifying {member.name}.")
+
+        if (role_mentions := ctx.message.role_mentions) != []:
+            reverify_role = role_mentions[0]
+            if ctx.guild.id not in self.guild_verified_roles.keys():
+                raise commands.BadArgument("Verified role doesn't exist")
+
+            verified_role = ctx.guild.get_role(
+                self.guild_verified_roles[ctx.guild.id])
+
+            for member in ctx.guild.members:
+                if reverify_role in member.roles and not self.ignore_member(member):
+                    # Remove the target role
+                    await member.remove_roles(reverify_role, reason="Reverification")
+
+                    # Remove the verified role
+                    if verified_role in member.roles:
+                        await member.remove_roles(
+                            verified_role, reason="Reverification")
+
+                    # Reset the user's nickname
+                    await member.edit(nick=None)
+                    print("Cleared member nickname")
+
+                    # DM the user the information embed
+                    if member.dm_channel is None:
+                        print("DM doesn't exist; creating.")
+                        await member.create_dm()
+                        print("DM created")
+
+                    print("Sending embed")
+                    test_embed = discord.Embed(title="Hello")
+                    await member.dm_channel.send(embed=bot.info_embed)
+                    print("Message sent")
+
+                    print(f"Reverified {member.name}")
+
+            await ctx.send(f"Done reverifying {reverify_role.name}.")
+
+    @reverify.error
+    async def reverify_error(self, ctx: commands.Context, error):
+        if isinstance(error, commands.BadArgument):
+            await ctx.send("There is no verified role for this server.")
+
+    @commands.command()
     async def clear(self, ctx: commands.Context, clear_target):
         # Possible clear targets
         possible_targets = ["override", "ignoredrole",

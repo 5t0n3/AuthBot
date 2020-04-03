@@ -55,6 +55,10 @@ def get_token():
 # Bot code
 client = commands.Bot("!")
 
+# Remove the help command
+# TODO: Implement a better one
+client.remove_command("help")
+
 
 @client.event
 async def on_ready():
