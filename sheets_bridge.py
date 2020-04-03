@@ -119,7 +119,7 @@ class Verification(commands.Cog):
         else:
             return False
 
-    @commands.command(name="verify", usage="!verify [role]")
+    @commands.command(name="verify", usage="verify [role]")
     @commands.bot_has_guild_permissions(manage_nicknames=True, manage_roles=True)
     @commands.has_guild_permissions(manage_nicknames=True, manage_roles=True)
     async def start_verification(self, ctx: commands.Context):
@@ -172,8 +172,12 @@ class Verification(commands.Cog):
         elif isinstance(error, commands.BadArgument):
             await ctx.send("You need to provide a role to grant once verified.")
 
-    @commands.command(name="verified-role")
+    @commands.command(name="verified-role", usage="verified-role")
     async def verified_role(self, ctx: commands.Context):
+        """
+        Lets the user know the verified role of the current guild
+        If the current guild doesn't have one, the command will reflect that as well.
+        """
         # Check that guild data exists and fetch it
         current_guild = ctx.guild
         self.check_guild_data_exists(current_guild.id)
@@ -189,9 +193,15 @@ class Verification(commands.Cog):
 
         await ctx.send(message)
 
-    @commands.command()
+    @commands.command(usage="reverify <users/role>")
     @commands.bot_has_guild_permissions(manage_roles=True, manage_nicknames=True)
     async def reverify(self, ctx: commands.Context):
+        """
+        Reverifies all users supplied or that have a given role.
+        If reverifying by role, only the first role will be reverified.
+        In both cases, ignored users will not be reverified, but you will only
+        be told about ignored users in the user case.
+        """
         # Source of the information embed
         import bot
 
@@ -251,8 +261,16 @@ class Verification(commands.Cog):
             await ctx.send(f"Done reverifying {reverify_role.name}.")
 
     # TODO: Try implementing via subcommands
-    @commands.command()
+    @commands.command(usage="clear <target>")
     async def clear(self, ctx: commands.Context, clear_target):
+        """
+        Removed a given target from guild data.
+
+        Among possible targets include `override`, `ignoredrole`, `ignoreduser`,
+        and `verifiedrole`.
+
+        Only the first user/role mentioned will be cleared when this command is called..
+        """
         # Check if guild data already exists for current guild
         self.check_guild_data_exists(ctx.guild.id)
 
@@ -366,29 +384,16 @@ class Verification(commands.Cog):
         if isinstance(error, commands.BadArgument) or isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Please provide a valid clear target.\nPossible clear targets are `override`, `ignoredrole`, `ignoreduser`, and `verifiedrole`.")
 
-    def pretty_print_list(self, item_list: list):
-        pretty_list = ""
-
-        if len(item_list) == 1:
-            pretty_list += f"{item_list[0]}"
-
-        elif len(item_list) == 2:
-            pretty_list += f"{item_list[0]} and {item_list[1]}"
-
-        else:
-            idx = 0
-            for item in item_list:
-                if idx == len(item_list) - 1:
-                    pretty_list += f"and {item}"
-                else:
-                    pretty_list += f"{item}, "
-
-                idx += 1
-
-        return pretty_list
-
-    @commands.command()
+    @commands.command(usage="ignore <role/user>")
     async def ignore(self, ctx: commands.Context):
+        """
+        Ignores a user/role for the purpose of verification.
+
+        If multiple mentions are supplied, all of them will be ignored. A mix of
+        mention types can be provided as well.
+
+        Ignores can be removed via the `clear` command.
+        """
         guild_id = ctx.guild.id
 
         # Check if this guild has already been initialized
@@ -423,8 +428,15 @@ class Verification(commands.Cog):
         if response != "":
             await ctx.send(response)
 
-    @commands.command(name="list-ignored")
+    # TODO: Refactor into subcommand of ignore
+    @commands.command(name="list-ignored", usage="list-ignored")
     async def list_ignored(self, ctx: commands.Context):
+        """
+        Lists all ignored roles and users for the current guild.
+
+        Users and roles will be displayed in separate categories, which will be
+        omitted in the case that there are no user/role ignores.
+        """
         self.check_guild_data_exists(ctx.guild.id)
 
         # Get reference to guild's ignored ids
@@ -461,17 +473,22 @@ class Verification(commands.Cog):
         # send the embed
         await ctx.send(embed=ignore_embed)
 
-    @commands.command()
+    # TODO: Consider refactoring clear into its respective commands/subcommands
+    @commands.command(usage="override <user> <nickname>")
     @commands.bot_has_guild_permissions(manage_nicknames=True)
     async def override(self, ctx: commands.Context, user, *name):
+        """
+        Overrides a user's nickname.
+
+        Note that the new nickname can have spaces.
+
+        To remove the nickname override, the `clear` command can be used.
+        """
         if (mentions := ctx.message.mentions) == []:
             raise commands.BadArgument("No user supplied")
 
         override_user = ctx.message.mentions[0]
         new_nickname = " ".join(name)
-
-        if new_nickname == "":
-            new_nickname = None
 
         # Change the user's nickname
         await override_user.edit(nick=new_nickname)
@@ -492,8 +509,12 @@ class Verification(commands.Cog):
         if isinstance(error, commands.BadArgument):
             await ctx.send("You need to supply a user to override their nickname.")
 
-    @commands.command(name="list-overrides")
+    # TODO: Refactor into subcommand
+    @commands.command(name="list-overrides", usage="list-overrides")
     async def list_overrides(self, ctx: commands.Context):
+        """
+        Lists all nickname overrides in the current server.
+        """
         overrides = self.guild_data[ctx.guild.id]["overrides"]
 
         list_embed = discord.Embed(title="Nickname Overrides",

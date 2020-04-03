@@ -8,18 +8,22 @@ import sheets
 import sheets_bridge
 import modrole
 
-logger = None
 sheetsCreds = None
 
 
-def setup_logging(logger):
-    logger = logging.getLogger("discord")
-    logger.setLevel(logging.DEBUG)
+def setup_logging():
+    logger_tmp = logging.getLogger("discord")
+    logger_tmp.setLevel(logging.INFO)
     handler = logging.FileHandler(
         filename="discord.log", encoding="utf-8", mode="w")
     handler.setFormatter(logging.Formatter(
         '%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-    logger.addHandler(handler)
+    logger_tmp.addHandler(handler)
+
+    return logger_tmp
+
+
+logger: logging.Logger = setup_logging()
 
 
 def get_token():
@@ -30,22 +34,12 @@ def get_token():
         except yaml.YAMLError as e:
             print(f"Error reading discordtoken.yaml: {e}")
 
-# TODO: Implement a better one
-# client.remove_command("help")
-
-
-async def help(ctx, cmd):
-    help_embed = discord.Embed(title="Help",
-                               color=discord.Color.gold())
-
-    command_prefix = await client.get_prefix()[0]
-
-    for command in client.all_commands.keys():
-        help_embed.add_field(name=f"`{command_prefix}{command}`",
-                             value=f"")
-
 
 class EmbedHelpCommand(commands.HelpCommand):
+    """
+    An implementation of HelpCommand that uses an embed to make the help menu
+    look cleaner.
+    """
     async def send_bot_help(self, mapping):
         help_embed = discord.Embed(title="Help",
                                    color=discord.Color.gold())
@@ -65,13 +59,25 @@ class EmbedHelpCommand(commands.HelpCommand):
 
         return None
 
-    async def send_cog_help(self, cog):
+    async def send_cog_help(self, cog: commands.Cog):
         help_embed = discord.Embed(
             title=f"{cog.qualified_name} Help", color=discord.Color.gold())
 
         for cmd in cog.walk_commands():
             help_embed.add_field(
-                name=f"`{self.context.prefix}{cmd.name}`", value=cmd.short_doc or "None", inline=False)
+                name=f"`{self.context.prefix}{cmd.qualified_name}`", value=cmd.short_doc or "None", inline=False)
+
+        await self.context.send(embed=help_embed)
+
+        return None
+
+    async def send_group_help(self, group: commands.Group):
+        help_embed = discord.Embed(
+            title=f"`{self.context.prefix}{group.qualified_name}` Help - Subcommands", color=discord.Color.gold())
+
+        for cmd in group.walk_commands():
+            help_embed.add_field(
+                name=f"`{self.context.prefix}{cmd.qualified_name}`", value=cmd.short_doc or "None", inline=False)
 
         await self.context.send(embed=help_embed)
 
@@ -79,14 +85,18 @@ class EmbedHelpCommand(commands.HelpCommand):
 
     async def send_command_help(self, command):
         help_embed = discord.Embed(
-            title=f"Command Help: `{self.context.prefix}{command.name}`", color=discord.Color.gold())
+            title=f"Command Help: `{self.context.prefix}{command.qualified_name}`", color=discord.Color.gold())
 
         help_embed.add_field(
-            name=f"Usage: `{command.usage}`", value=command.help)
+            name=f"Usage: `{self.context.prefix}{command.usage}`", value=command.help)
 
         await self.context.send(embed=help_embed)
 
         return None
+
+    async def send_error_message(self, error):
+        print("Error fetching help: " + error)
+        await self.context.send("That command doesn't exist.")
 
 
 # Bot code
@@ -107,7 +117,7 @@ async def on_member_join(member):
 
 
 @client.command()
-async def info(ctx):
+async def info(ctx: commands.Context):
     """
     Sends an information embed.
     This is the same embed as new users receive when they join a guild this bot
@@ -116,17 +126,28 @@ async def info(ctx):
     await ctx.send(embed=utilities.info_embed)
 
 
+@client.check
+def guild_only(ctx: commands.Context):
+    return ctx.guild is not None
+
+
 def setup_sheets_api():
     """Connects to the Google Sheets API."""
     sheetsCreds = sheets.verify_credentials()
     return sheetsCreds
 
 
+@client.event
+async def on_command_error(ctx: commands.Context, error: commands.CommandError):
+    if isinstance(error, commands.CheckFailure):
+        logger.error("%s tried and failed to executed command %s: %s",
+                     ctx.author.name, ctx.command.name, error)
+
 if __name__ == "__main__":
     sheetsCreds = setup_sheets_api()
 
     # Discord bot setup
-    setup_logging(logger)
+    # logger: logging.Logger = setup_logging()
     client.add_cog(sheets_bridge.Verification(client, sheetsCreds, logger))
     client.add_cog(modrole.Modrole(client))
 

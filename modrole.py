@@ -11,13 +11,23 @@ class Modrole(commands.Cog, name="Moderation"):
         self.bot = bot
         self.modroles = self.load_if_exists("modroles.pickle")
 
+        # Add the corresponding modrole check to the supplied bot.
+        self.bot.add_check(self.mods_only)
+
     @commands.group()
     async def modrole(self, ctx: commands.Context):
+        """
+        The command group related to managing and viewing modroles.
+        """
         if ctx.invoked_subcommand is None:
             await ctx.send("Please specify a subcommand.\nPossible subcommands are `add`, `remove` and `list`.")
 
-    @modrole.command()
+    @modrole.command(usage="add <role>")
     async def add(self, ctx: commands.Context):
+        """
+        Adds a modrole for the guild this command is called from.
+        If the modrole already exists for this guild, the user will be notified.
+        """
         if len(role_mentions := ctx.message.role_mentions) == 0:
             await ctx.send("You need to supply roles to become modroles.")
             return
@@ -43,8 +53,13 @@ class Modrole(commands.Cog, name="Moderation"):
         confirmation_message = "New Modroles: " + \
             utilities.pretty_print_list(role_names)
 
-    @modrole.command()
+    @modrole.command(usage="remove <role>")
     async def remove(self, ctx: commands.Context):
+        """
+        Removes a modrole from the current guild.
+        This doesn't actually delete the role, but it will no longer be able to
+        use commands.
+        """
         if len(role_mentions := ctx.message.role_mentions) == 0:
             await ctx.send("You need to supply modroles to remove.")
             return
@@ -71,8 +86,11 @@ class Modrole(commands.Cog, name="Moderation"):
 
         await ctx.send(role_list_message)
 
-    @modrole.command()
+    @modrole.command(usage="list")
     async def list(self, ctx: commands.Context):
+        """
+        Lists all modroles for the current guild.
+        """
         list_embed = discord.Embed(title="Moderator Roles",
                                    color=discord.Color.orange())
 
@@ -92,9 +110,11 @@ class Modrole(commands.Cog, name="Moderation"):
 
         await ctx.send(embed=list_embed)
 
-    @commands.check
-    def mods_only(self, ctx):
-        for role in modroles:
+    # @commands.check
+    def mods_only(self, ctx: commands.Context):
+        for role_id in self.modroles[ctx.guild.id]:
+            role = ctx.guild.get_role(role_id)
+
             if role in ctx.author.roles:
                 return True
 
