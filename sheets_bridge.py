@@ -22,7 +22,7 @@ class Verification(commands.Cog):
         unsorted_data = sheets.fetch_data(self.creds)
         self.sheets_data = self.sort_data(unsorted_data)
 
-        print(f"Current data: {self.sheets_data}")
+        self.logger.debug("Current data: %s", self.sheets_data)
 
         for guild_id in self.guild_data.keys():
             # Check if guild data exists and fetch it
@@ -157,6 +157,7 @@ class Verification(commands.Cog):
         self.write_guild_data_changes()
 
         self.update_data.start()
+        self.logger.info("Starting Google Sheets verification loop")
         await ctx.send(f"Starting verification loop.\nVerified role: {verified_role}")
 
     @start_verification.error

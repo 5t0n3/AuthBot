@@ -25,7 +25,7 @@ class Modrole(commands.Cog, name="Moderation"):
     @modrole.command(usage="add <role>")
     async def add(self, ctx: commands.Context):
         """
-        Adds a modrole for the guild this command is called from.
+        Adds a modrole from the current guild.
         If the modrole already exists for this guild, the user will be notified.
         """
         if len(role_mentions := ctx.message.role_mentions) == 0:
@@ -110,13 +110,17 @@ class Modrole(commands.Cog, name="Moderation"):
 
         await ctx.send(embed=list_embed)
 
-    # @commands.check
     def mods_only(self, ctx: commands.Context):
+        # Check guild modroles
         for role_id in self.modroles[ctx.guild.id]:
             role = ctx.guild.get_role(role_id)
 
             if role in ctx.author.roles:
                 return True
+
+        # Allow the server owner to run commands regardless of their roles
+        if ctx.author == ctx.guild.owner:
+            return True
 
         return False
 
