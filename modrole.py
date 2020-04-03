@@ -111,6 +111,7 @@ class Modrole(commands.Cog, name="Moderation"):
         await ctx.send(embed=list_embed)
 
     def mods_only(self, ctx: commands.Context):
+        self.ensure_modroles_exist(ctx.guild.id)
         # Check guild modroles
         for role_id in self.modroles[ctx.guild.id]:
             role = ctx.guild.get_role(role_id)
