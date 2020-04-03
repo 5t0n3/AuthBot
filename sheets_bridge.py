@@ -5,6 +5,8 @@ import discord
 import os
 import pickle
 
+import utilities
+
 
 class Verification(commands.Cog):
     def __init__(self, bot: commands.Bot, sheetsCreds, logger: logging.Logger):
@@ -211,7 +213,7 @@ class Verification(commands.Cog):
             if member.dm_channel is None:
                 await member.create_dm()
 
-            await member.dm_channel.send(embed=bot.info_embed)
+            await member.dm_channel.send(embed=utilities.info_embed)
 
             # ! For debug purposes; remove later
             await ctx.send(f"Reverifying {member.name}.")
@@ -244,12 +246,12 @@ class Verification(commands.Cog):
                     if member.dm_channel is None:
                         await member.create_dm()
 
-                    await member.dm_channel.send(embed=bot.info_embed)
+                    await member.dm_channel.send(embed=utilities.info_embed)
 
             await ctx.send(f"Done reverifying {reverify_role.name}.")
 
     # TODO: Try implementing via subcommands
-    @ commands.command()
+    @commands.command()
     async def clear(self, ctx: commands.Context, clear_target):
         # Check if guild data already exists for current guild
         self.check_guild_data_exists(ctx.guild.id)
@@ -359,7 +361,7 @@ class Verification(commands.Cog):
             else:
                 await ctx.send("Please provide a verified role to remove.")
 
-    @ clear.error
+    @clear.error
     async def clear_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.BadArgument) or isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Please provide a valid clear target.\nPossible clear targets are `override`, `ignoredrole`, `ignoreduser`, and `verifiedrole`.")
@@ -385,7 +387,7 @@ class Verification(commands.Cog):
 
         return pretty_list
 
-    @ commands.command()
+    @commands.command()
     async def ignore(self, ctx: commands.Context):
         guild_id = ctx.guild.id
 
@@ -421,7 +423,7 @@ class Verification(commands.Cog):
         if response != "":
             await ctx.send(response)
 
-    @ commands.command(name="list-ignored")
+    @commands.command(name="list-ignored")
     async def list_ignored(self, ctx: commands.Context):
         self.check_guild_data_exists(ctx.guild.id)
 
@@ -459,8 +461,8 @@ class Verification(commands.Cog):
         # send the embed
         await ctx.send(embed=ignore_embed)
 
-    @ commands.command()
-    @ commands.bot_has_guild_permissions(manage_nicknames=True)
+    @commands.command()
+    @commands.bot_has_guild_permissions(manage_nicknames=True)
     async def override(self, ctx: commands.Context, user, *name):
         if (mentions := ctx.message.mentions) == []:
             raise commands.BadArgument("No user supplied")
@@ -485,12 +487,12 @@ class Verification(commands.Cog):
         self.write_guild_data_changes()
 
     # TODO: Handle permission error (maybe in separate function?)
-    @ override.error
+    @override.error
     async def override_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.BadArgument):
             await ctx.send("You need to supply a user to override their nickname.")
 
-    @ commands.command(name="list-overrides")
+    @commands.command(name="list-overrides")
     async def list_overrides(self, ctx: commands.Context):
         overrides = self.guild_data[ctx.guild.id]["overrides"]
 
