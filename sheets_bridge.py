@@ -43,19 +43,15 @@ class Verification(commands.Cog):
             for username in self.sheets_data.keys():
                 # Check if the user actually exists in the guild
                 if username in guild_usernames.keys():
-                    print(f"Verifying {username}")
                     update_member = guild_usernames[username]
 
                     # Ignore user if specified
-                    print(
-                        f"{username} ignored: {self.ignore_member(update_member, guild_id)}")
                     if self.ignore_member(update_member, guild_id):
                         continue
 
                     # This is the name that they put into the Google Form
                     new_nick = self.sheets_data[username]["nickname"]
                     school_username = self.sheets_data[username]["email"][0:8]
-                    print(f"School username: {school_username}")
 
                     if not self.nickname_valid(username):
                         new_nick = school_username
@@ -67,13 +63,10 @@ class Verification(commands.Cog):
                     # Get the verified role reference through the guild
                     verified_role_id = current_guild_data["verified_role"]
                     verified_role = current_guild.get_role(verified_role_id)
-                    print(f"Verified_role: {verified_role.name}")
 
                     # Change the user's nickname and give them the correct role
                     await update_member.edit(nick=new_nick)
                     await update_member.add_roles(verified_role)
-
-                    print(f"Done verifying {username}")
 
     def guild_member_usernames(self, guild: discord.Guild):
         member_dict = {}
@@ -234,7 +227,6 @@ class Verification(commands.Cog):
             reverify_role = role_mentions[0]
             verified_role = current_guild.get_role(verified_role_id)
 
-            print("Started iterating over members")
             for member in current_guild.members:
                 if reverify_role in member.roles and not self.ignore_member(member, current_guild.id):
                     # Remove the target role
@@ -371,30 +363,6 @@ class Verification(commands.Cog):
     async def clear_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.BadArgument) or isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Please provide a valid clear target.\nPossible clear targets are `override`, `ignoredrole`, `ignoreduser`, and `verifiedrole`.")
-
-    def clear_dict_attribute(self, location: dict, key, file):
-        # Delete the override and write the data to its file
-        print("Deleting key")
-        del location[key]
-        print("Deleted key")
-
-        self.write_attr_changes(location, file)
-
-    def clear_list_attribute(self, location: list, write_item, item, file):
-        # Delete the override and write the data to its file
-        location.remove(item)
-
-        self.write_attr_changes(write_item, file)
-
-    def write_attr_changes(self, obj, file):
-        with open(file, "wb") as update_file:
-            pickle.dump(obj, update_file)
-
-    def update_verified_role(self, guild_id, role_id):
-        self.guild_verified_roles[guild_id] = role_id
-
-        with open("verified_roles.pickle", "wb") as verifile:
-            pickle.dump(self.guild_verified_roles, verifile)
 
     def pretty_print_list(self, item_list: list):
         pretty_list = ""
