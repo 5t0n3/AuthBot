@@ -132,6 +132,8 @@ async def info(ctx):
     """ Sends an information embed """
     await ctx.send(embed=info_embed)
 
+# TODO: Implement a mods-only check
+
 
 def setup_sheets_api():
     """Connects to the Google Sheets API."""
