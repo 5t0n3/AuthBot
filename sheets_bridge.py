@@ -6,7 +6,7 @@ import os
 import pickle
 
 
-class SheetsBridge(commands.Cog):
+class Verification(commands.Cog):
     def __init__(self, bot: commands.Bot, sheetsCreds, logger: logging.Logger):
         self.bot = bot
         self.creds = sheetsCreds
@@ -114,10 +114,18 @@ class SheetsBridge(commands.Cog):
         else:
             return False
 
-    @commands.command(name="verify")
+    @commands.command(name="verify", usage="!verify [role]")
     @commands.bot_has_guild_permissions(manage_nicknames=True, manage_roles=True)
     @commands.has_guild_permissions(manage_nicknames=True, manage_roles=True)
     async def start_verification(self, ctx: commands.Context):
+        """
+        Starts the verification loop through Google Sheets.
+
+        `[role]` is an optional parameter as long as `verify` has been called in
+        the past with a role (this can be checked with `verified-role`).
+
+        This command requires the Manage Nicknames and Manage Roles Priveleges.
+        """
         commandGuild = ctx.guild
 
         if commandGuild.id in self.guild_verified_roles.keys():

@@ -51,13 +51,67 @@ def get_token():
         except yaml.YAMLError as e:
             print(f"Error reading discordtoken.yaml: {e}")
 
+# TODO: Implement a better one
+# client.remove_command("help")
+
+
+async def help(ctx, cmd):
+    help_embed = discord.Embed(title="Help",
+                               color=discord.Color.gold())
+
+    command_prefix = await client.get_prefix()[0]
+
+    for command in client.all_commands.keys():
+        help_embed.add_field(name=f"`{command_prefix}{command}`",
+                             value=f"")
+
+
+class EmbedHelpCommand(commands.HelpCommand):
+    async def send_bot_help(self, mapping):
+        help_embed = discord.Embed(title="Help",
+                                   color=discord.Color.gold())
+
+        for cog in mapping:
+            command_str = ""
+            for command in mapping[cog]:
+                command_str += f"`{self.context.prefix}{command.name}`\n"
+
+            if cog is not None:
+                help_embed.add_field(
+                    name=cog.qualified_name, value=command_str)
+            else:
+                help_embed.add_field(name="Other", value=command_str)
+
+        await self.context.send(embed=help_embed)
+
+        return None
+
+    async def send_cog_help(self, cog):
+        help_embed = discord.Embed(
+            title=f"{cog.qualified_name} Help", color=discord.Color.gold())
+
+        for cmd in cog.walk_commands():
+            help_embed.add_field(
+                name=f"`{self.context.prefix}{cmd.name}`", value=cmd.short_doc or "None", inline=False)
+
+        await self.context.send(embed=help_embed)
+
+        return None
+
+    async def send_command_help(self, command):
+        help_embed = discord.Embed(
+            title=f"Command Help: `{self.context.prefix}{command.name}`", color=discord.Color.gold())
+
+        help_embed.add_field(
+            name=f"Usage: `{command.usage}`", value=command.help)
+
+        await self.context.send(embed=help_embed)
+
+        return None
+
 
 # Bot code
-client = commands.Bot("!")
-
-# Remove the help command
-# TODO: Implement a better one
-client.remove_command("help")
+client = commands.Bot("!", help_command=EmbedHelpCommand())
 
 
 @client.event
@@ -75,6 +129,7 @@ async def on_member_join(member):
 
 @client.command()
 async def info(ctx):
+    """ Sends an information embed """
     await ctx.send(embed=info_embed)
 
 
@@ -89,6 +144,6 @@ if __name__ == "__main__":
 
     # Discord bot setup
     setup_logging(logger)
-    client.add_cog(sheets_bridge.SheetsBridge(client, sheetsCreds, logger))
+    client.add_cog(sheets_bridge.Verification(client, sheetsCreds, logger))
     token = get_token()["token"]
     client.run(token)
