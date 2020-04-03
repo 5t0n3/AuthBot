@@ -2,8 +2,10 @@ import discord
 from discord.ext import commands, tasks
 import logging
 import yaml
+
 import sheets
 import sheets_bridge
+import modrole
 
 logger = None
 sheetsCreds = None
@@ -132,8 +134,6 @@ async def info(ctx):
     """ Sends an information embed """
     await ctx.send(embed=info_embed)
 
-# TODO: Implement a mods-only check
-
 
 def setup_sheets_api():
     """Connects to the Google Sheets API."""
@@ -147,5 +147,7 @@ if __name__ == "__main__":
     # Discord bot setup
     setup_logging(logger)
     client.add_cog(sheets_bridge.Verification(client, sheetsCreds, logger))
+    client.add_cog(modrole.Modrole(client))
+
     token = get_token()["token"]
     client.run(token)
