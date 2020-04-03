@@ -108,7 +108,11 @@ async def on_member_join(member):
 
 @client.command()
 async def info(ctx):
-    """ Sends an information embed """
+    """
+    Sends an information embed.
+    This is the same embed as new users receive when they join a guild this bot
+    is in. Its contents are configurable via the embedconfig.yaml file.
+    """
     await ctx.send(embed=utilities.info_embed)
 
 

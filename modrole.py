@@ -11,8 +11,13 @@ class Modrole(commands.Cog, name="Moderation"):
         self.bot = bot
         self.modroles = self.load_if_exists("modroles.pickle")
 
-    @commands.command()
+    @commands.group()
     async def modrole(self, ctx: commands.Context):
+        if ctx.invoked_subcommand is None:
+            await ctx.send("Please specify a subcommand.\nPossible subcommands are `add`, `remove` and `list`.")
+
+    @modrole.command()
+    async def add(self, ctx: commands.Context):
         if len(role_mentions := ctx.message.role_mentions) == 0:
             await ctx.send("You need to supply roles to become modroles.")
             return
@@ -20,8 +25,15 @@ class Modrole(commands.Cog, name="Moderation"):
         # Create the modroles list if it doesn't exist already
         self.ensure_modroles_exist(ctx.guild.id)
 
+        modrole_list = self.modroles[ctx.guild.id]
+
         # Add modrole ids to self.modroles under guild id key
-        self.modroles[ctx.guild.id].extend([role.id for role in role_mentions])
+        for role in role_mentions:
+            if role.id not in modrole_list:
+                modrole_list.append(role.id)
+
+            else:
+                await ctx.send(f"{role.name} is already a modrole.")
 
         # Write changes to storage
         self.write_modrole_changes()
@@ -31,10 +43,36 @@ class Modrole(commands.Cog, name="Moderation"):
         confirmation_message = "New Modroles: " + \
             utilities.pretty_print_list(role_names)
 
-        await ctx.send(confirmation_message)
+    @modrole.command()
+    async def remove(self, ctx: commands.Context):
+        if len(role_mentions := ctx.message.role_mentions) == 0:
+            await ctx.send("You need to supply modroles to remove.")
+            return
 
-    @commands.command(name="list-modroles")
-    async def list_modroles(self, ctx: commands.Context):
+        # Initialize modroles list if necessary
+        self.ensure_modroles_exist(ctx.guild.id)
+
+        removed_roles = []
+
+        # Check if the supplied role(s) are actually modroles
+        for role in role_mentions:
+            # Let user know if role is not a modrole
+            if role.id not in (role_list := self.modroles[ctx.guild.id]):
+                await ctx.send(f"{role.name} is not a modrole.")
+                continue
+
+            role_list.remove(role.id)
+            removed_roles.append(role.name)
+
+        self.write_modrole_changes()
+
+        role_list_message = ("Modroles removed: " + utilities.pretty_print_list(
+            removed_roles)) or "There are no modroles for this guild."
+
+        await ctx.send(role_list_message)
+
+    @modrole.command()
+    async def list(self, ctx: commands.Context):
         list_embed = discord.Embed(title="Moderator Roles",
                                    color=discord.Color.orange())
 
