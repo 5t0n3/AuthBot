@@ -143,7 +143,7 @@ class Verification(commands.Cog):
 
         # Check that a verified role exists for current guild
         if (verified_role_id := current_guild_data.get("verified_role")) is None:
-            await ctx.send("Please supply a verified role with the `verify set` command.")
+            await ctx.send(f"Please supply a verified role with the `{ctx.prefix}verify set` command.")
             return
 
         verified_role = ctx.guild.get_role(verified_role_id)
@@ -230,7 +230,7 @@ class Verification(commands.Cog):
 
         # Check if verified role actually exists for current guild
         if (verified_role_id := current_guild_data.get("verified_role")) is None:
-            await ctx.send(f"This guild has no verified role. You can set one with `{ctx.prefix}verify`.")
+            await ctx.send(f"This guild has no verified role. You can set one with `{ctx.prefix}verify set`.")
             return
 
         verified_role_name = current_guild.get_role(verified_role_id).name
