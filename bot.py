@@ -147,6 +147,9 @@ async def on_command_error(ctx: commands.Context, error: commands.CommandError):
     if isinstance(error, commands.CheckFailure):
         logger.error("%s tried and failed to executed command %s: %s",
                      ctx.author.name, ctx.command.name, error)
+    else:
+        logger.error("Error running command `%s`: %s",
+                     ctx.command.qualified_name, error)
 
 if __name__ == "__main__":
     sheetsCreds = setup_sheets_api()

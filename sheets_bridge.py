@@ -244,7 +244,7 @@ class Verification(commands.Cog):
             message_base = "In order to verify users, I need the following additional permission(s): "
 
             final_message = message_base + \
-                self.pretty_print_list(error.missing_perms)
+                utilities.pretty_print_list(error.missing_perms)
 
             await ctx.send(final_message)
 
@@ -315,139 +315,22 @@ class Verification(commands.Cog):
 
             await ctx.send(f"Done reverifying {reverify_role.name}.")
 
-    # TODO: Try implementing via subcommands
-    @commands.command(usage="clear <target>")
-    async def clear(self, ctx: commands.Context, clear_target):
-        """
-        Removed a given target from guild data.
-
-        Among possible targets include `override`, `ignoredrole`, `ignoreduser`,
-        and `verifiedrole`.
-
-        Only the first user/role mentioned will be cleared when this command is called..
-        """
-        # Check if guild data already exists for current guild
-        self.check_guild_data_exists(ctx.guild.id)
-
-        # Store reference to this guild's data
-        current_guild_data = self.guild_data[ctx.guild.id]
-
-        # Possible clear targets
-        possible_targets = ["override", "ignoredrole",
-                            "ignoreduser", "verifiedrole"]
-
-        if clear_target not in possible_targets:
-            raise commands.BadArgument("Invalid clear target")
-
-        # Clear override
-        if clear_target == possible_targets[0]:
-            overrides = current_guild_data["overrides"]
-            if len(mentions := ctx.message.mentions) != 0:
-                clear_user = mentions[0]
-
-                # Check if the user's name is actually overridden
-                if clear_user.id not in overrides.keys():
-                    await ctx.send(f"{clear_user.name}'s nickname is not overridden.")
-                    return
-                else:
-                    # Reset the user's nickname
-                    await clear_user.edit(nick=None)
-
-                    # Remove the override
-                    del overrides[clear_user.id]
-
-                    await ctx.send(f"{clear_user.name}'s nickname is no longer overridden.")
-
-            else:
-                await ctx.send("Please provide a user to remove a nickname override from.")
-
-        # Clear ignored role
-        elif clear_target == possible_targets[1]:
-            ignored_roles = current_guild_data["ignores"]["roles"]
-
-            if len(role_mentions := ctx.message.role_mentions) != 0:
-                clear_role = role_mentions[0]
-
-                # Check if role is actually ignored
-                if clear_role.id not in ignored_roles:
-                    await ctx.send(f"{clear_role.name} is not ignored.")
-                    return
-                else:
-                    # Remove role ignore
-                    ignored_roles.remove(clear_role.id)
-
-                    await ctx.send(f"Successfully unignored role: {clear_role.name}")
-
-            else:
-                await ctx.send("Please provide a role to unignore.")
-
-        # Clear ignored user
-        elif clear_target == possible_targets[2]:
-            ignored_users = current_guild_data["ignores"]["users"]
-
-            if len(mentions := ctx.message.mentions) != 0:
-                clear_user = mentions[0]
-
-                # Check if user is currently ignored
-                if clear_user.id not in ignored_users:
-                    await ctx.send(f"{clear_user.name} is not ignored.")
-                    return
-                else:
-                    # Remove user ignore
-                    ignored_users.remove(clear_user.id)
-
-                    await ctx.send(f"Successfully unignored user: {clear_user.name}")
-
-            else:
-                await ctx.send("Please provide a user to unignore.")
-
-        # Clear verified role
-        elif clear_target == possible_targets[3]:
-            # Note that this is none if there is no verified role
-            verified_role_id = current_guild_data.get("verified_role")
-
-            if len(role_mentions := ctx.message.role_mentions) != 0:
-                clear_role = role_mentions[0]
-
-                # No verified role for this guild
-                if verified_role_id is None:
-                    await ctx.send("This guild has no verified role.")
-                    return
-
-                # Check if guild's verified role and supplied role match
-                if verified_role_id == clear_role.id:
-                    # Remove the verified role
-                    del current_guild_data["verified_role"]
-
-                    # Stop the verification loop
-                    self.update_data.stop()
-
-                    # Let user know about success
-                    remove_message = f"Successfully removed verified role: {clear_role.name}\nThe verification loop has stopped."
-
-                    await ctx.send(remove_message)
-
-                # Role doesn't match guild's verified role
-                else:
-                    await ctx.send(f"{clear_role.name} is not this guild's verified role.")
-
-            else:
-                await ctx.send("Please provide a verified role to remove.")
-
-    @clear.error
-    async def clear_error(self, ctx: commands.Context, error):
-        if isinstance(error, commands.BadArgument) or isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send("Please provide a valid clear target.\nPossible clear targets are `override`, `ignoredrole`, `ignoreduser`, and `verifiedrole`.")
-
-    @commands.command(usage="ignore <role/user>")
+    @commands.group()
     async def ignore(self, ctx: commands.Context):
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(ctx.command)
+
+    @ignore.command(name="add", usage="add <role/user>...")
+    async def add_(self, ctx: commands.Context):
         """
         Ignores a user/role for the purpose of verification.
 
         If multiple mentions are supplied, all of them will be ignored. A mix of
-        mention types can be provided as well.
+        mention types (roles/users) can be provided as well.
 
-        Ignores can be removed via the `clear` command.
+        Users/roles that are already ignored will not be added, but skipped.
+
+        Ignores can be removed via the `ignore remove` command.
         """
         guild_id = ctx.guild.id
 
@@ -474,27 +357,83 @@ class Verification(commands.Cog):
 
         if len(ctx.message.mentions) > 0:
             response += "Ignoring users: " + \
-                self.pretty_print_list(ctx.message.mentions)
+                utilities.pretty_print_list(ctx.message.mentions)
 
         if len(ctx.message.role_mentions) > 0:
             response += "\nIgnoring roles: " + \
-                self.pretty_print_list(ctx.message.role_mentions)
+                utilities.pretty_print_list(ctx.message.role_mentions)
 
         if response != "":
             await ctx.send(response)
 
-    # TODO: Refactor into subcommand of ignore
-    @commands.command(name="list-ignored", usage="list-ignored")
-    async def list_ignored(self, ctx: commands.Context):
+    @ignore.command(name="remove", usage="remove <role/user>...")
+    async def remove_(self, ctx):
+        """
+        Removes a role/user ignore for the purpose of verification.
+
+        If multiple users/roles are supplied, they will all be removed at once.
+        """
+
+        # Get a reference to the current guild data
+        self.check_guild_data_exists(ctx.guild.id)
+        current_guild_data = self.guild_data[ctx.guild.id]
+
+        # Fetch the role and user ignores
+        ignores = current_guild_data["ignores"]
+
+        if len(role_mentions := ctx.message.role_mentions) == 0 and len(user_mentions := ctx.message.mentions) == 0:
+            await ctx.send("Please provide a user/role to unignore.")
+            return
+
+        # List to keep track of role ignores that were removed
+        removed_roles = []
+
+        # Check which roles to remove, if any
+        for role_id in ignores["roles"]:
+            ignore_role = ctx.guild.get_role(role_id)
+            if ignore_role in role_mentions:
+                ignores["roles"].remove(role_id)
+                removed_roles.append(ignore_role.mention)
+
+        # List to keep track of user ignores that were removed
+        removed_users = []
+
+        # Check which roles to remove, if any
+        for user_id in ignores["users"]:
+            ignore_member = ctx.guild.get_member(user_id)
+            if ignore_member in user_mentions:
+                ignores["users"].remove(user_id)
+                removed_users.append(ignore_member.mention)
+
+        # Make an embed saying which roles and users were unignored
+        removed_embed = discord.Embed(title="Removed Ignores",
+                                      color=discord.Color.red())
+
+        removed_role_str = utilities.pretty_print_list(
+            removed_roles) or "No roles unignored."
+        removed_user_str = utilities.pretty_print_list(
+            removed_users) or "No users unignored."
+
+        # Add removed ignore fields to embed
+        removed_embed.add_field(
+            name="Roles", value=removed_role_str, inline=False)
+        removed_embed.add_field(
+            name="Users", value=removed_user_str, inline=False)
+
+        await ctx.send(embed=removed_embed)
+
+    # Named list_ because of naming conflicts with list keyword
+    @ignore.command(name="list", usage="list")
+    async def list_(self, ctx):
         """
         Lists all ignored roles and users for the current guild.
 
         Users and roles will be displayed in separate categories, which will be
-        omitted in the case that there are no user/role ignores.
+        omitted in case they don't exist.
         """
-        self.check_guild_data_exists(ctx.guild.id)
 
         # Get reference to guild's ignored ids
+        self.check_guild_data_exists(ctx.guild.id)
         ignores = self.guild_data[ctx.guild.id]["ignores"]
 
         ignore_embed = discord.Embed(title="Ignored Users and Roles",
@@ -512,12 +451,12 @@ class Verification(commands.Cog):
 
         # Add corresponding fields to embed with pretty-printed information
         if len(ignored_roles) > 0:
-            role_list_str = self.pretty_print_list(ignored_roles)
+            role_list_str = utilities.pretty_print_list(ignored_roles)
             ignore_embed.add_field(name="Ignored Roles:",
                                    value=role_list_str, inline=False)
 
         if len(ignored_users) > 0:
-            user_list_str = self.pretty_print_list(ignored_users)
+            user_list_str = utilities.pretty_print_list(ignored_users)
             ignore_embed.add_field(name="Ignored Users:",
                                    value=user_list_str, inline=False)
 
@@ -616,7 +555,7 @@ class Verification(commands.Cog):
             message_base = "In order to override users' nicknames, I need the following additional permission(s): "
 
             final_message = message_base + \
-                self.pretty_print_list(error.missing_perms)
+                utilities.pretty_print_list(error.missing_perms)
 
             await ctx.send(final_message)
 
