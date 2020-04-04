@@ -4,6 +4,7 @@ import logging
 import discord
 import os
 import pickle
+import re
 
 import utilities
 
@@ -125,11 +126,17 @@ class Verification(commands.Cog):
         user_email = self.sheets_data[discord_name]["email"]
         test_nick = self.sheets_data[discord_name]["nickname"].lower()
 
-        # Check if the first and last name match, respectively
-        if user_email[4] in test_nick and user_email[0:4] in test_nick:
-            return True
-        else:
-            return False
+        # Regex for matching against the test nickname
+        first_initial = fr"^{user_email[4]}"
+        last_initial = fr"{user_email[0]}({user_email[1:4]})?\.?"
+
+        # Check if the first initial matches
+        if re.search(first_initial, test_nick):
+            # Check if the user supplied a last initial/name
+            if re.search(last_initial, test_nick):
+                return True
+
+        return False
 
     @commands.group()
     @commands.bot_has_guild_permissions(manage_nicknames=True, manage_roles=True)
