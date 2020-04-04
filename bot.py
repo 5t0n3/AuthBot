@@ -42,7 +42,7 @@ class EmbedHelpCommand(commands.HelpCommand):
     look cleaner.
     """
     async def send_bot_help(self, mapping):
-        help_embed = discord.Embed(title="Help",
+        help_embed = discord.Embed(title=f"{self.context.bot.user.name} Help",
                                    color=discord.Color.gold())
 
         for item in mapping:
@@ -50,14 +50,14 @@ class EmbedHelpCommand(commands.HelpCommand):
             if item is not None:
                 command_str = ""
 
-                # walk_commands is not used here because groups should be
-                # displayed as singular commands
-                for command in mapping[item]:
+                # Subcommands are omitted by using get_commands, as it shortens
+                # the embed
+                for command in item.get_commands():
                     command_str += f"`{self.context.prefix}{command.qualified_name}`\n"
 
                 if command_str != "":
                     help_embed.add_field(
-                        name=item.qualified_name, value=command_str)
+                        name=f"**{item.qualified_name}**", value=command_str)
 
             else:
                 command_str = ""
@@ -65,7 +65,7 @@ class EmbedHelpCommand(commands.HelpCommand):
                 for command in mapping[item]:
                     command_str += f"`{self.context.prefix}{command.name}`\n"
 
-                help_embed.add_field(name="Other", value=command_str)
+                help_embed.add_field(name="**Other**", value=command_str)
 
         await self.context.send(embed=help_embed)
 
@@ -75,7 +75,8 @@ class EmbedHelpCommand(commands.HelpCommand):
         help_embed = discord.Embed(
             title=f"{cog.qualified_name} Help", color=discord.Color.gold())
 
-        for cmd in cog.walk_commands():
+        # Subcommands are omitted so the embed isn't too long
+        for cmd in cog.get_commands():
             help_embed.add_field(
                 name=f"`{self.context.prefix}{cmd.qualified_name}`", value=cmd.short_doc or "None", inline=False)
 
@@ -116,8 +117,14 @@ class EmbedHelpCommand(commands.HelpCommand):
         await self.context.send("That command doesn't exist.")
 
 
+# Add a usage and help message to the help command for the sake of completeness
+help_command_with_usage = EmbedHelpCommand(command_attrs={
+    "usage": "help [command/category]",
+    "help": "Shows help information for the bot.\n\nIf a command or category is supplied, the help page for it will be shown instead."
+})
+
 # Bot code
-client = commands.Bot("!", help_command=EmbedHelpCommand())
+client = commands.Bot("!", help_command=help_command_with_usage)
 
 
 @client.event

@@ -339,6 +339,9 @@ class Verification(commands.Cog):
 
     @commands.group()
     async def ignore(self, ctx: commands.Context):
+        """
+        Command group related to ignoring users for the purpose of verification.
+        """
         if ctx.invoked_subcommand is None:
             await ctx.send_help(ctx.command)
 
