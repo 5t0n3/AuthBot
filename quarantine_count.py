@@ -13,7 +13,7 @@ class QuarantineCount(commands.Cog):
         self.bot = bot
         self.update_quarantine_count.start()
 
-    @tasks.loop(minutes=30)
+    @tasks.loop(minutes=10)
     async def update_quarantine_count(self):
         START_OF_QUARANTINE = datetime.datetime(2020, 3, 13)
         time_delta = datetime.datetime.now() - START_OF_QUARANTINE
