@@ -13,9 +13,21 @@ class Verification(commands.Cog):
         self.bot = bot
         self.creds = sheetsCreds
         self.logger = logger
+        self.verifying = False
 
         self.guild_data = self.read_pickle_if_exists("guild_data.pickle", {})
         self.sheets_data = {}
+
+    def cog_unload(self):
+        self.update_data.cancel()
+
+    @Verification.listener()
+    async def on_resumed(self):
+        """
+        Resume the verification loop if it was going before disconnecting/reconnecting.
+        """
+        if self.verifying:
+            self.update_data.start()
 
     @tasks.loop(seconds=60)
     async def update_data(self):
@@ -150,6 +162,8 @@ class Verification(commands.Cog):
 
         self.update_data.start()
         self.logger.info("Starting Google Sheets verification loop")
+        self.verifying = True
+
         await ctx.send(f"Starting verification loop.\nVerified role: {verified_role}")
 
     @verify.command(usage="stop")
@@ -161,6 +175,7 @@ class Verification(commands.Cog):
         self.update_data.stop()
 
         self.logger.info("Stopping Google Sheets verification loop.")
+        self.verifying = False
 
         # Let the user know
         await ctx.send("Stopping verification loop.")
