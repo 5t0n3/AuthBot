@@ -7,6 +7,7 @@ import utilities
 import sheets
 import sheets_bridge
 import modrole
+import quarantine_count
 
 sheetsCreds = None
 
@@ -111,6 +112,7 @@ client = commands.Bot("!", help_command=EmbedHelpCommand())
 @client.event
 async def on_ready():
     print(f"{client.user.name} is up and running!")
+    client.add_cog(quarantine_count.QuarantineCount(client))
 
 
 @client.event
@@ -150,6 +152,7 @@ async def on_command_error(ctx: commands.Context, error: commands.CommandError):
     else:
         logger.error("Error running command `%s`: %s",
                      ctx.command.qualified_name, error)
+
 
 if __name__ == "__main__":
     sheetsCreds = setup_sheets_api()
