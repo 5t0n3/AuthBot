@@ -83,12 +83,17 @@ class EmbedHelpCommand(commands.HelpCommand):
 
         return None
 
-    async def send_command_help(self, command):
+    async def send_command_help(self, command: commands.Command):
         help_embed = discord.Embed(
             title=f"Command Help: `{self.context.prefix}{command.qualified_name}`", color=discord.Color.gold())
 
+        command_parent_string = ""
+
+        if command.parent is not None:
+            command_parent_string = command.parent.name + " "
+
         help_embed.add_field(
-            name=f"Usage: `{self.context.prefix}{command.usage}`", value=command.help)
+            name=f"Usage: `{self.context.prefix}{command_parent_string}{command.usage}`", value=command.help)
 
         await self.context.send(embed=help_embed)
 
@@ -116,7 +121,7 @@ async def on_member_join(member):
     await member.dm_channel.send(embed=utilities.info_embed)
 
 
-@client.command()
+@client.command(usage="info")
 async def info(ctx: commands.Context):
     """
     Sends an information embed.

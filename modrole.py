@@ -20,12 +20,12 @@ class Modrole(commands.Cog, name="Moderation"):
         The command group related to managing and viewing modroles.
         """
         if ctx.invoked_subcommand is None:
-            await ctx.send("Please specify a subcommand.\nPossible subcommands are `add`, `remove` and `list`.")
+            await ctx.send_help(ctx.command)
 
     @modrole.command(usage="add <role>")
     async def add(self, ctx: commands.Context):
         """
-        Adds a modrole from the current guild.
+        Adds a modrole to the current guild.
         If the modrole already exists for this guild, the user will be notified.
         """
         if len(role_mentions := ctx.message.role_mentions) == 0:

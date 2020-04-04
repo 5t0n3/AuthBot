@@ -119,17 +119,21 @@ class Verification(commands.Cog):
         else:
             return False
 
-    @commands.command(name="verify", usage="verify [role]")
+    @commands.group()
     @commands.bot_has_guild_permissions(manage_nicknames=True, manage_roles=True)
-    @commands.has_guild_permissions(manage_nicknames=True, manage_roles=True)
-    async def start_verification(self, ctx: commands.Context):
+    async def verify(self, ctx: commands.Context):
+        """
+        The command group directly related to verification via Google Sheets.
+        """
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(ctx.command)
+
+    @verify.command(usage="start")
+    async def start(self, ctx: commands.Context):
         """
         Starts the verification loop through Google Sheets.
 
-        `[role]` is an optional parameter as long as `verify` has been called in
-        the past with a role (this can be checked with `verified-role`).
-
-        This command requires the Manage Nicknames and Manage Roles Priveleges.
+        This command requires the Manage Nicknames and Manage Roles privileges.
         """
 
         # Check that guild data exists and fetch it
@@ -137,46 +141,86 @@ class Verification(commands.Cog):
         self.check_guild_data_exists(current_guild_id)
         current_guild_data = self.guild_data[current_guild_id]
 
-        # Role was supplied
-        if len(role_mentions := ctx.message.role_mentions) != 0:
-            # Check if role needs to be updated
-            if current_guild_data.get("verified_role") != (new_role := role_mentions[0]).id:
-                current_guild_data["verified_role"] = new_role.id
-                await ctx.send(f"New guild verified role: {new_role.name}")
+        # Check that a verified role exists for current guild
+        if (verified_role_id := current_guild_data.get("verified_role")) is None:
+            await ctx.send("Please supply a verified role with the `verify set` command.")
+            return
 
-        # Role was not supplied but exists in guild data
-        elif (verified_role_id := current_guild_data.get("verified_role")) is not None:
-            verified_role = ctx.guild.get_role(verified_role_id)
-            await ctx.send(f"No role supplied; verifying with {verified_role.name}")
-
-        # No role supplied and no past guild verified role
-        else:
-            raise commands.BadArgument("No role supplied")
-
-        # Write role changes to storage
-        self.write_guild_data_changes()
+        verified_role = ctx.guild.get_role(verified_role_id)
 
         self.update_data.start()
         self.logger.info("Starting Google Sheets verification loop")
         await ctx.send(f"Starting verification loop.\nVerified role: {verified_role}")
 
-    @start_verification.error
-    async def verify_error(self, ctx: commands.Context, error):
-        if isinstance(error, commands.BotMissingPermissions):
-            message_base = "In order to verify users, I need the following additional permission(s): "
-
-            final_message = message_base + \
-                self.pretty_print_list(error.missing_perms)
-
-            await ctx.send(final_message)
-
-        elif isinstance(error, commands.BadArgument):
-            await ctx.send("You need to provide a role to grant once verified.")
-
-    @commands.command(name="verified-role", usage="verified-role")
-    async def verified_role(self, ctx: commands.Context):
+    @verify.command(usage="stop")
+    async def stop(self, ctx: commands.Context):
         """
-        Lets the user know the verified role of the current guild
+        Stops the Google Sheets Verification loop.
+        """
+        # Stop the verification loop
+        self.update_data.stop()
+
+        self.logger.info("Stopping Google Sheets verification loop.")
+
+        # Let the user know
+        await ctx.send("Stopping verification loop.")
+
+    @verify.command(usage="set <role>")
+    async def set(self, ctx: commands.context):
+        """
+        Sets the verified role for the current guild.
+
+        Setting the same role will do nothing.
+        Note that this will override the previous role, if any.
+        """
+        if len(role_mentions := ctx.message.role_mentions) == 0:
+            await ctx.send("Please supply a role to set as verified.")
+
+        verified_role = role_mentions[0]
+
+        # Make sure the guild data exists
+        self.check_guild_data_exists(ctx.guild.id)
+
+        # Update the role if it is different
+        if verified_role.id != (current_guild_data := self.guild_data[ctx.guild.id]).get("verified_role"):
+            current_guild_data["verified_role"] = verified_role.id
+            await ctx.send(f"New verified role for this guild: {verified_role.name}")
+            self.write_guild_data_changes()
+
+        # Let the user know if the supplied role was the same as the current one
+        else:
+            await ctx.send(f"{verified_role.name} is already this guild's verified role.")
+
+    @verify.command(usage="unset")
+    async def unset(self, ctx: commands.Context):
+        """
+        Unsets the verified role for the current guild.
+        Also stops the verification loop if it is running.
+
+        If no role is currently set, the user will be notified.
+        """
+        # Fetch current guild data
+        self.check_guild_data_exists(ctx.guild.id)
+        current_guild_data = self.guild_data[ctx.guild.id]
+
+        # Check if the current verified role exists
+        if (verified_role_id := current_guild_data.get("verified_role")) is None:
+            await ctx.send("No verified role is set for this guild.")
+            return
+
+        # Remove the role and write changes
+        del current_guild_data["verified_role"]
+        self.write_guild_data_changes()
+
+        # Fetch the verified role's name
+        verified_role = ctx.guild.get_role(verified_role_id)
+
+        await ctx.send(f"Guild verified role removed: {verified_role.name}")
+
+    @verify.command(usage="role")
+    async def role(self, ctx: commands.Context):
+        """
+        Lets the user know the verified role of the current guild.
         If the current guild doesn't have one, the command will reflect that as well.
         """
         # Check that guild data exists and fetch it
@@ -193,6 +237,16 @@ class Verification(commands.Cog):
         message = f"The current verified role for this guild is {verified_role_name}."
 
         await ctx.send(message)
+
+    @verify.error
+    async def verify_error(self, ctx: commands.Context, error):
+        if isinstance(error, commands.BotMissingPermissions):
+            message_base = "In order to verify users, I need the following additional permission(s): "
+
+            final_message = message_base + \
+                self.pretty_print_list(error.missing_perms)
+
+            await ctx.send(final_message)
 
     @commands.command(usage="reverify <users/role>")
     @commands.bot_has_guild_permissions(manage_roles=True, manage_nicknames=True)
