@@ -528,19 +528,26 @@ class Verification(commands.Cog):
         # send the embed
         await ctx.send(embed=ignore_embed)
 
-    # TODO: Consider refactoring clear into its respective commands/subcommands
-    @commands.command(usage="override <user> <nickname>")
+    @commands.group()
     @commands.bot_has_guild_permissions(manage_nicknames=True)
-    async def override(self, ctx: commands.Context, user, *name):
+    async def override(self, ctx: commands.Context):
+        """
+        Commands responsible for overriding users' nicknames.
+        """
+        if ctx.invoked_subcommand is None:
+            await ctx.send_help(ctx.command)
+
+    @override.command(usage="add <user> <nickname>")
+    async def add(self, ctx: commands.Context, user, *name):
         """
         Overrides a user's nickname.
 
-        Note that the new nickname can have spaces.
+        Note that the new nickname can have spaces and still display properly.
 
-        To remove the nickname override, the `clear` command can be used.
+        To remove the nickname override, the `override remove` command can be used.
         """
-        if (mentions := ctx.message.mentions) == []:
-            raise commands.BadArgument("No user supplied")
+        if len(mentions := ctx.message.mentions) == 0:
+            await ctx.send("Please supply a user to override their nickname.")
 
         override_user = ctx.message.mentions[0]
         new_nickname = " ".join(name)
@@ -549,7 +556,7 @@ class Verification(commands.Cog):
         await override_user.edit(nick=new_nickname)
 
         # Send a message about the override
-        await ctx.send(f"{override_user.name}'s nickname is now overridden to{new_nickname}.")
+        await ctx.send(f"{override_user.name}'s nickname is now overridden to {new_nickname}.")
 
         # Update guild data and write changes
         self.check_guild_data_exists(ctx.guild.id)
@@ -558,15 +565,32 @@ class Verification(commands.Cog):
 
         self.write_guild_data_changes()
 
-    # TODO: Handle permission error (maybe in separate function?)
-    @override.error
-    async def override_error(self, ctx: commands.Context, error):
-        if isinstance(error, commands.BadArgument):
-            await ctx.send("You need to supply a user to override their nickname.")
+    @override.command(usage="remove <user>")
+    async def remove(self, ctx: commands.Context):
+        """
+        Removes a user's nickname override, if applicable.
+        """
+        if len(mentions := ctx.message.mentions) == 0:
+            await ctx.send("Please supply a user to remove a nickname override from.")
+            return
 
-    # TODO: Refactor into subcommand
-    @commands.command(name="list-overrides", usage="list-overrides")
-    async def list_overrides(self, ctx: commands.Context):
+        self.check_guild_data_exists(ctx.guild.id)
+        current_guild_overrides = self.guild_data[ctx.guild.id]["overrides"]
+        override_user = mentions[0]
+
+        if override_user.id not in current_guild_overrides:
+            await ctx.send(f"{override_user.name}'s nickname is not overridden.")
+            return
+
+        # Remove the override and write changes
+        del current_guild_overrides[override_user.id]
+        await override_user.edit(nick=None)
+        self.write_guild_data_changes()
+
+        await ctx.send(f"{override_user.name}'s nickname is no longer overridden.")
+
+    @override.command(usage="list")
+    async def list(self, ctx: commands.Context):
         """
         Lists all nickname overrides in the current server.
         """
@@ -585,6 +609,16 @@ class Verification(commands.Cog):
             list_embed.description = "There are no nickname overrides for this server."
 
         await ctx.send(embed=list_embed)
+
+    @override.error
+    async def override_error(self, ctx: commands.Context, error):
+        if isinstance(error, commands.BotMissingPermissions):
+            message_base = "In order to override users' nicknames, I need the following additional permission(s): "
+
+            final_message = message_base + \
+                self.pretty_print_list(error.missing_perms)
+
+            await ctx.send(final_message)
 
     def read_pickle_if_exists(self, filename, default_val):
         if os.path.exists(filename):
