@@ -21,7 +21,7 @@ class Verification(commands.Cog):
     def cog_unload(self):
         self.update_data.cancel()
 
-    @Verification.listener()
+    @commands.Cog.listener()
     async def on_resumed(self):
         """
         Resume the verification loop if it was going before disconnecting/reconnecting.
