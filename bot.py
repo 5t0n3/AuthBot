@@ -45,15 +45,26 @@ class EmbedHelpCommand(commands.HelpCommand):
         help_embed = discord.Embed(title="Help",
                                    color=discord.Color.gold())
 
-        for cog in mapping:
+        for item in mapping:
             command_str = ""
-            for command in mapping[cog]:
-                command_str += f"`{self.context.prefix}{command.name}`\n"
+            if item is not None:
+                command_str = ""
 
-            if cog is not None:
-                help_embed.add_field(
-                    name=cog.qualified_name, value=command_str)
+                # walk_commands is not used here because groups should be
+                # displayed as singular commands
+                for command in mapping[item]:
+                    command_str += f"`{self.context.prefix}{command.qualified_name}`\n"
+
+                if command_str != "":
+                    help_embed.add_field(
+                        name=item.qualified_name, value=command_str)
+
             else:
+                command_str = ""
+
+                for command in mapping[item]:
+                    command_str += f"`{self.context.prefix}{command.name}`\n"
+
                 help_embed.add_field(name="Other", value=command_str)
 
         await self.context.send(embed=help_embed)
