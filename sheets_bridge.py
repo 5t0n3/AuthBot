@@ -300,7 +300,10 @@ class Verification(commands.Cog):
             if member.dm_channel is None:
                 await member.create_dm()
 
-            await member.dm_channel.send(embed=utilities.info_embed)
+            try:
+                await member.dm_channel.send(embed=utilities.info_embed)
+            except discord.Forbidden as e:
+                self.logger.error(f"Failed to DM user: {member.name}")
 
             # ! For debug purposes; remove later
             await ctx.send(f"Reverifying {member.name}.")
@@ -339,6 +342,11 @@ class Verification(commands.Cog):
                         self.logger.error(f"Cannot DM {member.name}")
 
             await ctx.send(f"Done reverifying {reverify_role.name}.")
+
+    @reverify.error
+    async def reverify_error(self, ctx: commands.Context, error):
+        if isinstance(error, commands.BotMissingPermissions):
+            await ctx.send("Missing permissions for `reverify`: " + utilities.pretty_print_list(error.missing_perms))
 
     @commands.group()
     async def ignore(self, ctx: commands.Context):
