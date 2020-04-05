@@ -333,7 +333,10 @@ class Verification(commands.Cog):
                     if member.dm_channel is None:
                         await member.create_dm()
 
-                    await member.dm_channel.send(embed=utilities.info_embed)
+                    try:
+                        await member.dm_channel.send(embed=utilities.info_embed)
+                    except discord.Forbidden as e:
+                        self.logger.error(f"Cannot DM {member.name}")
 
             await ctx.send(f"Done reverifying {reverify_role.name}.")
 
