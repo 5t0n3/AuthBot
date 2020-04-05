@@ -126,9 +126,20 @@ class Verification(commands.Cog):
         user_email = self.sheets_data[discord_name]["email"]
         test_nick = self.sheets_data[discord_name]["nickname"].lower()
 
+        # Get the non-number part of the user's school username
+        user_username = re.search(r"^(\D+)\d+", user_email)
+
+        if user_username is None:
+            return False
+
+        user_name_fragment = user_username.group(1)
+        user_first_initial = user_name_fragment[-1]
+        user_last_initial = user_name_fragment[0]
+        user_last_name_fragment = user_name_fragment[1:-1]
+
         # Regex for matching against the test nickname
-        first_initial = fr"^{user_email[4]}"
-        last_initial = fr"{user_email[0]}({user_email[1:4]})?\.?"
+        first_initial = fr"^{user_first_initial}"
+        last_initial = fr"{user_last_initial}({user_last_name_fragment})?\.?$"
 
         # Check if the first initial matches
         if re.search(first_initial, test_nick):
@@ -309,9 +320,7 @@ class Verification(commands.Cog):
             await ctx.send(f"Reverifying {member.name}.")
 
         # Reverify roles (unless they are ignored)
-        # TODO: The way this works is slightly sketchy, so I might want to look
-        # at it later
-        if (role_mentions := ctx.message.role_mentions) != []:
+        if len(role_mentions := ctx.message.role_mentions) != 0:
             if (verified_role_id := current_guild_data.get("verified_role")) is None:
                 await ctx.send("Please set a verified role first.")
                 return
