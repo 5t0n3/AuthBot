@@ -23,6 +23,10 @@ class QuarantineCount(commands.Cog):
     def cog_unload(self):
         self.update_quarantine_count.cancel()
 
+    @commands.Cog.listener()
+    async def on_disconnect(self):
+        self.update_quarantine_count.cancel()
+
     @tasks.loop(minutes=10)
     async def update_quarantine_count(self):
         START_OF_QUARANTINE = datetime.datetime(2020, 3, 13)
