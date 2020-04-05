@@ -139,7 +139,7 @@ class Verification(commands.Cog):
 
         # Regex for matching against the test nickname
         first_initial = fr"^{user_first_initial}"
-        last_initial = fr"{user_last_initial}({user_last_name_fragment})?\.?$"
+        last_initial = fr"{user_last_initial}({user_last_name_fragment})?\.?"
 
         # Check if the first initial matches
         if re.search(first_initial, test_nick):
