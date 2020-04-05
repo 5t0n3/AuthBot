@@ -12,13 +12,8 @@ class QuarantineCount(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-        # Start the task if it's not running already
-        if self.update_quarantine_count.get_task() is None:
-            self.update_quarantine_count.start()
-            print("Starting update_quarantine_count")
-        else:
-            print(
-                f"Task is already running: {self.update_quarantine_count.get_task()}")
+        # Start the status update loop
+        self.update_quarantine_count.start()
 
     def cog_unload(self):
         self.update_quarantine_count.cancel()
