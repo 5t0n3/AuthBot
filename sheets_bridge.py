@@ -30,7 +30,7 @@ class Verification(commands.Cog):
         if self.verifying:
             self.update_data.start()
 
-    @tasks.loop(seconds=60)
+    @tasks.loop(minutes=3)
     async def update_data(self):
         unsorted_data = sheets.fetch_data(self.creds)
         self.sheets_data = self.sort_data(unsorted_data)
