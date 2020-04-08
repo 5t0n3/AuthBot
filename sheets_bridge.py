@@ -23,6 +23,13 @@ class Verification(commands.Cog):
         self.update_data.cancel()
 
     @commands.Cog.listener()
+    async def on_disconnect(self):
+        """
+        Cancel the verification loop when the bot disconnects.
+        """
+        self.update_data.cancel()
+    
+    @commands.Cog.listener()
     async def on_resumed(self):
         """
         Resume the verification loop if it was going before disconnecting/reconnecting.
