@@ -14,7 +14,7 @@ sheetsCreds = None
 
 def setup_logging():
     logger_tmp = logging.getLogger("discord")
-    logger_tmp.setLevel(logging.DEBUG)
+    logger_tmp.setLevel(logging.INFO)
     handler = logging.FileHandler(
         filename="discord.log", encoding="utf-8", mode="w")
     handler.setFormatter(logging.Formatter(
