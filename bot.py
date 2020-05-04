@@ -133,6 +133,7 @@ restart_count = 0
 
 @client.event
 async def on_ready():
+    restart_count += 1
     logger.info("%s is up and running (restarts: %s)", client.user.name, restart_count)
     client.add_cog(quarantine_count.QuarantineCount(client))
 
