@@ -123,13 +123,11 @@ help_command_with_usage = EmbedHelpCommand(command_attrs={
     "help": "Shows help information for the bot.\n\nIf a command or category is supplied, the help page for it will be shown instead."
 })
 
-# Bot code
-client = commands.Bot("!", help_command=help_command_with_usage)
-
-
 # Variable for keeping track of restarts
 restart_count = 0
 
+# Bot code
+client = commands.Bot("!", help_command=help_command_with_usage)
 
 @client.event
 async def on_ready():
