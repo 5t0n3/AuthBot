@@ -55,6 +55,6 @@ def fetch_data(credentials):
         sheet = service.spreadsheets()
         result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
                                     range=RANGE_NAME).execute()
-        values = result.get("values")
+        values = result.get("values") or [];
 
         return values
