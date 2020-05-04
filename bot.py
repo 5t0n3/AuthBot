@@ -127,9 +127,13 @@ help_command_with_usage = EmbedHelpCommand(command_attrs={
 client = commands.Bot("!", help_command=help_command_with_usage)
 
 
+# Variable for keeping track of restarts
+restart_count = 0
+
+
 @client.event
 async def on_ready():
-    print(f"{client.user.name} is up and running!")
+    logger.info("%s is up and running (restarts: %s)", client.user.name, restart_count)
     client.add_cog(quarantine_count.QuarantineCount(client))
 
 
