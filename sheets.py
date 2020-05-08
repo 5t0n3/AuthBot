@@ -19,10 +19,11 @@ with open("sheetsconfig.yaml", "r") as config:
 
 
 class CredentialError(ValueError):
-    """ Error type for when credentials are not present """
+    """ Error type for when credentials are not present. """
     pass
 
 
+# NOTE: This function was taken from the Google Sheets API Quickstart page
 def verify_credentials():
     credentials = None
 
@@ -44,6 +45,9 @@ def verify_credentials():
     return credentials
 
 
+# End Google Sheets API Quickstart Code
+
+
 def fetch_data(credentials):
     if credentials is None:
         raise CredentialError(
@@ -55,6 +59,6 @@ def fetch_data(credentials):
         sheet = service.spreadsheets()
         result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
                                     range=RANGE_NAME).execute()
-        values = result.get("values") or [];
+        values = result.get("values") or []
 
         return values
