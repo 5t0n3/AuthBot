@@ -28,7 +28,7 @@ class Verification(commands.Cog):
         Cancel the verification loop when the bot disconnects.
         """
         self.update_data.cancel()
-    
+
     @commands.Cog.listener()
     async def on_ready(self):
         """
@@ -73,7 +73,8 @@ class Verification(commands.Cog):
 
                     # This is the name that they put into the Google Form
                     new_nick = self.sheets_data[username]["nickname"]
-                    school_username = self.sheets_data[username]["email"][0:8]
+                    school_email = self.sheets_data[username]["email"]
+                    school_username = self.extract_username(school_email).group(0)
 
                     if not self.nickname_valid(username):
                         new_nick = school_username
@@ -129,12 +130,18 @@ class Verification(commands.Cog):
 
         return False
 
+    def extract_username(self, school_email: str):
+        """
+        Extracts someone's school username from their email.
+        """
+        return re.search(r"^(\D+)\d+", school_email)
+
     def nickname_valid(self, discord_name: str):
         user_email = self.sheets_data[discord_name]["email"]
         test_nick = self.sheets_data[discord_name]["nickname"].lower()
 
         # Get the non-number part of the user's school username
-        user_username = re.search(r"^(\D+)\d+", user_email)
+        user_username = self.extract_username(user_email)
 
         if user_username is None:
             return False
